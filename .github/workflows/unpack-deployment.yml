@@ -1,0 +1,28 @@
+
+name: Unpack BuildLab deployment ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Unpack project files
+        run: |
+          unzip -o BuildLabEgypt_deploy_v2.1.1.zip -d .
+          rm BuildLabEgypt_deploy_v2.1.1.zip
+
+      - name: Commit project files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add BuildLab Egypt project files"
+          git push
