@@ -24,5 +24,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
+          git reset -- .github/workflows/test.yml
           git commit -m "Add BuildLab Egypt project files"
           git push
