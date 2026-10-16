@@ -1,0 +1,11 @@
+{
+  "name": "BuildLab مصر — أسعار وتجميع الكمبيوتر",
+  "short_name": "BuildLab مصر",
+  "lang": "ar-EG",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07101c",
+  "theme_color": "#08111e",
+  "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
