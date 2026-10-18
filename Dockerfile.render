@@ -1,0 +1,28 @@
+# Single-container demo profile for Render. The API, RQ worker and Redis
+# share one container/filesystem so queued uploads can be processed without
+# cross-service file mounts. Use the regular Docker Compose stack for a VPS.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MEDIA_ROOT=/data/jobs \
+    REDIS_URL=redis://127.0.0.1:6379/0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ffmpeg redis-server ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srv/luma
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+COPY static ./static
+COPY render-entrypoint.sh /usr/local/bin/lumaglass-render-entrypoint
+RUN chmod 0755 /usr/local/bin/lumaglass-render-entrypoint && \
+    useradd --create-home --uid 10001 luma && \
+    mkdir -p /data/jobs /data/redis && \
+    chown -R luma:luma /srv/luma /data
+
+USER luma
+EXPOSE 8000
+ENTRYPOINT ["/usr/local/bin/lumaglass-render-entrypoint"]

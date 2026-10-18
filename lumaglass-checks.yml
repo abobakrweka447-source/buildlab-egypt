@@ -1,0 +1,70 @@
+name: LumaGlass quality checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - "media-studio/**"
+      - ".github/workflows/lumaglass-checks.yml"
+      - "render.yaml"
+      - "RENDER_DEPLOYMENT.md"
+  pull_request:
+    paths:
+      - "media-studio/**"
+      - ".github/workflows/lumaglass-checks.yml"
+      - "render.yaml"
+      - "RENDER_DEPLOYMENT.md"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MEDIA_ROOT: /tmp/lumaglass-ci-jobs
+      API_ACCESS_TOKEN: ci-test-token
+      REQUIRE_API_KEY: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install backend and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r media-studio/requirements.txt pytest
+      - name: Python syntax
+        run: python -m py_compile media-studio/app/main.py media-studio/app/jobs.py
+      - name: HTML and inline JavaScript syntax
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Parser(HTMLParser):
+              def __init__(self): super().__init__(); self.active=False; self.current=[]; self.scripts=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script": self.active=True; self.current=[]
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.active: self.scripts.append("".join(self.current)); self.active=False
+              def handle_data(self, data):
+                  if self.active: self.current.append(data)
+          p=Parser(); p.feed(Path("media-studio/static/index.html").read_text(encoding="utf-8"))
+          assert p.scripts, "No inline JavaScript found"
+          html=Path("media-studio/static/index.html").read_text(encoding="utf-8")
+          for text in ("LUMAGLASS", "EVEL", "© ", "apiAccessKey"):
+              assert text in html, f"Missing branding or UI feature: {text}"
+          Path("/tmp/lumaglass-inline.js").write_text("\n".join(p.scripts), encoding="utf-8")
+          print("HTML source and expected UI elements validated")
+          PY
+          node --check /tmp/lumaglass-inline.js
+      - name: Backend and FFmpeg/Pillow smoke tests
+        working-directory: media-studio
+        run: PYTHONPATH=. python -m pytest -q tests
+      - name: Docker image build smoke test (Compose/VPS)
+        run: docker build -t evel-lumaglass-ci media-studio
+      - name: Docker image build smoke test (single-container Render demo)
+        run: docker build -f media-studio/Dockerfile.render -t evel-lumaglass-render-ci media-studio

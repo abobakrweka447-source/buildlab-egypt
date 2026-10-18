@@ -1,0 +1,50 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      MEDIA_ROOT: /data/jobs
+    ports:
+      - "8000:8000"
+    volumes:
+      - media-jobs:/data/jobs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/health',timeout=4)); raise SystemExit(0 if d.get('ok') else 1)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+  worker:
+    build: .
+    command: ["sh", "-c", "rq worker --url redis://redis:6379/0 media-jobs"]
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      MEDIA_ROOT: /data/jobs
+    volumes:
+      - media-jobs:/data/jobs
+    depends_on:
+      redis:
+        condition: service_healthy
+volumes:
+  redis-data:
+  media-jobs:

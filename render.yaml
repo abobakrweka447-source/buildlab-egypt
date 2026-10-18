@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: evel-lumaglass-studio
+    runtime: docker
+    plan: free
+    dockerfilePath: ./media-studio/Dockerfile.render
+    dockerContext: ./media-studio
+    healthCheckPath: /api/health
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - key: API_ACCESS_TOKEN
+        generateValue: true
+      - key: REQUIRE_API_KEY
+        value: "true"
+      - key: REDIS_URL
+        value: redis://127.0.0.1:6379/0
+      - key: MEDIA_ROOT
+        value: /data/jobs
+      - key: MAX_UPLOAD_MB
+        value: "100"
+      - key: RETENTION_HOURS
+        value: "6"
