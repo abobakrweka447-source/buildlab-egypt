@@ -58,15 +58,35 @@ async function callGemini(messages, systemPrompt) {
 
 async function callOpenAICompatible({ provider, baseUrl, key, model, messages, systemPrompt }) {
   if (!key) throw new Error(`${provider} غير مضبوط`);
+
+  // GPT-OSS on Groq returns reasoning separately by default. Disable that field
+  // and reserve a proper completion-token budget for the final user-facing text.
+  const isGptOss = provider === 'Groq' && model.startsWith('openai/gpt-oss-');
+  const requestMessages = isGptOss
+    ? [{
+        role: 'user',
+        content: `تعليمات المساعد:\n${systemPrompt}\n\nاتبع التعليمات السابقة وأجب عن آخر رسالة مستخدم في المحادثة التالية.`
+      }, ...messages]
+    : [{ role: 'system', content: systemPrompt }, ...messages];
+
+  const requestBody = {
+    model,
+    messages: requestMessages,
+    temperature: 0.35
+  };
+
+  if (isGptOss) {
+    requestBody.max_completion_tokens = 1400;
+    requestBody.include_reasoning = false;
+    requestBody.reasoning_effort = 'low';
+  } else {
+    requestBody.max_tokens = 900;
+  }
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      temperature: 0.35,
-      max_tokens: 900
-    }),
+    body: JSON.stringify(requestBody),
     signal: AbortSignal.timeout(25000)
   });
   const data = await response.json().catch(() => ({}));
@@ -76,7 +96,10 @@ async function callOpenAICompatible({ provider, baseUrl, key, model, messages, s
     throw error;
   }
   const text = data?.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error(`${provider} رجّع ردًا فارغًا`);
+  if (!text) {
+    const finishReason = data?.choices?.[0]?.finish_reason || 'unknown';
+    throw new Error(`${provider} رجّع ردًا فارغًا (finish_reason=${finishReason})`);
+  }
   return text;
 }
 
@@ -122,8 +145,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, answer, provider: name });
     } catch (error) {
       errors.push(`${name}: ${String(error.message || error).slice(0, 180)}`);
-      // Fail over for quota/rate limits, provider outages, and temporary network errors.
-      // Configuration/auth errors are also skipped so another configured provider can answer.
+      // Try the next configured provider when a provider is unavailable.
     }
   }
 
