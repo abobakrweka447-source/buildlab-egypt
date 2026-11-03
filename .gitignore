@@ -1,5 +1,7 @@
+node_modules/
+.vercel/
 .env
-__pycache__/
-*.pyc
-*.log
+.env.*
+!.env.example
+npm-debug.log*
 .DS_Store
