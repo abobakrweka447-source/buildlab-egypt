@@ -31,8 +31,11 @@
     "api/health.js": {
       "maxDuration": 10
     },
-    "api/chat.js": {
+    "api/ai-chat.js": {
       "maxDuration": 30
+    },
+    "api/ai-config.js": {
+      "maxDuration": 10
     }
   }
 }

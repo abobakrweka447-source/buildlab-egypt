@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     app: 'BuildLab مصر',
-    version: '2.1.1',
+    version: '2.2.0',
     service: 'website-api',
     checkedAt: new Date().toISOString()
   });
