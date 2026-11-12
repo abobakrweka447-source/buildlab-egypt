@@ -314,6 +314,8 @@ async function initializeAi(){
   AI_SUPABASE=window.supabase.createClient(config.supabaseUrl,config.supabasePublishableKey,{
    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
   });
+     window.BuildLabSupabase = AI_SUPABASE;
+  window.dispatchEvent(new Event('buildlab:supabase-ready'));
   const sessionResult=await AI_SUPABASE.auth.getSession();
   AI_SESSION=sessionResult.data?.session||null;
   if(config.aiEnabled){setAiNotice('');}
@@ -397,5 +399,6 @@ $('budget').value=String(STORE.budget);$('budget').addEventListener('input',()=>
 restore();$('budget').value=String(STORE.budget);renderCategories();renderBuilder();initializeAi();
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
+  <script src="/BuildLab-auth.js"></script>
 </body>
 </html>
